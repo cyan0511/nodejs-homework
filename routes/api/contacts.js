@@ -1,6 +1,13 @@
 import express from 'express';
-import {addContact, getContactById, listContacts, removeContact, updateContact} from '../../models/contacts.js';
-import {nanoid} from 'nanoid';
+import {
+    addContact,
+    getContactById,
+    isContactExists,
+    listContacts,
+    removeContact,
+    updateContact,
+    updateStatusContact
+} from '../../models/contacts.js';
 import contactSchema from '../../validations/contactValidation.js';
 
 // Validation middleware
@@ -18,29 +25,45 @@ const validateContact = (req, res, next) => {
     next();
 };
 
+const validateExistingContact = async(req, res, next) => {
+    const { name , email } = req.body;
+    const exists = await isContactExists({name, email});
+    if (exists) {
+        return res.status(400).json({
+            status: 'error',
+            error: 'Contact already exists.'
+        });
+    }
+    next();
+};
+
 const router = express.Router();
 
 router.get('/', async (req, res, next) => {
-    const list = await listContacts();
-    console.log(list);
-    res.json(list);
+   try {
+       const list = await listContacts();
+       res.json(list);
+   } catch (ex) {
+       console.log(ex);
+       res.status(500).json({message: 'Internal Server Error'});
+   }
 })
 
 router.get('/:id', async (req, res, next) => {
-    const { id } = req.params;
+    const {id} = req.params;
     const contact = await getContactById(id);
-    if (!contact) return res.status(400).json({ message: 'Not found'});
+    if (!contact) return res.status(400).json({message: 'Not found'});
     res.json(contact);
 })
 
-router.post('/', validateContact, async (req, res, next) => {
+router.post('/', validateContact, validateExistingContact, async (req, res, next) => {
     const {name, email, phone} = req.body;
-    const newContact = await addContact({ id: nanoid(), name, email, phone });
+    const newContact = await addContact({name, email, phone, favorite: false});
     res.status(201).json(newContact);
 })
 
 router.delete('/:id', async (req, res, next) => {
-    const { id } = req.params;
+    const {id} = req.params;
     const contact = await getContactById(id);
     if (!contact) return res.status(404).json({"message": "Not found"});
     await removeContact(id);
@@ -48,13 +71,28 @@ router.delete('/:id', async (req, res, next) => {
 })
 
 router.put('/:id', validateContact, async (req, res, next) => {
-    const { id } = req.params;
-    const { name, email, phone } = req.body;
+    const {id} = req.params;
+    const {name, email, phone} = req.body;
 
     const contact = await getContactById(id);
     if (!contact) return res.status(404).json({"message": "Not found"});
 
-    const updatedContact = await updateContact({ id, name, email, phone });
+    const updatedContact = await updateContact({...contact, id, name, email, phone, });
+    res.json(updatedContact);
+})
+
+router.patch('/:id/favorite', async (req, res, next) => {
+    const {id} = req.params;
+    const {favorite} = req.body;
+
+    if (favorite === undefined || favorite === null) {
+        return res.status(404).json({"message": "missing field favorite"});
+    }
+
+    const contact = await getContactById(id);
+    if (!contact) return res.status(404).json({"message": "Not found"});
+
+    const updatedContact = await updateStatusContact({ id, favorite});
     res.json(updatedContact);
 })
 

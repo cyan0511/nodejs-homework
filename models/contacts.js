@@ -1,80 +1,75 @@
-import path from 'path';
-import fs from 'fs/promises';
-import { nanoid } from 'nanoid';
+import {model, Schema} from "mongoose";
 
-const contactsPath = path.join("./models/", "contacts.json");
+// Shape of the database/datatype
+const contactSchema = new Schema(
+    {
+        name: {
+            type: String,
+            required: [true, "Set name for contact"],
+        },
+        email: {
+            type: String,
+            required: [true, "Set email for contact"],
+        },
+        phone: {
+            type: String,
+            required: [true, "Set phone for contact"],
+        },
+        favorite: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    {versionKey: false}
+);
+
+//MongoDB collection name = "contacts"
+const Contact = model("contacts", contactSchema);
 
 const listContacts = async () => {
-  try {
-    const contacts = await fs.readFile(contactsPath);
-    return JSON.parse(contacts);
-  } catch (error) {
-    console.error("Error reading contacts:", error.message);
-  }
+    return Contact.find();
 };
 
 const getContactById = async (contactId) => {
-  try {
-    const contacts = await listContacts();
-    const contact = contacts.find(contact => contact.id === contactId);
-    return contact || null;
-  } catch (error) {
-    console.error("Error reading contacts by id:", error.message);
-  }
+    try {
+        const contact = await Contact.findById(contactId);
+        return contact || null;
+    } catch (error) {
+        console.error("Error reading contacts by id:", error.message);
+    }
 };
 
 const removeContact = async (contactId) => {
-  try {
-    const contacts = await listContacts();
-    const index = contacts.findIndex(contact => contact.id === contactId);
-    if (index === -1) {
-      return null;
-    }
-    const deletedContact = contacts.splice(index, 1);
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return deletedContact;
-  } catch (error) {
-    console.error("Error removing contact:", error.message);
-  }
+    // Model.findByIdAndDelete()
+    return Contact.findByIdAndDelete(contactId);
 };
 
-const addContact = async ({ name, email, phone }) => {
-  try {
-    const newContact = {
-      id: nanoid(),
-      name,
-      email,
-      phone,
-    };
-
-    const contacts = await listContacts();
-
-    const allContacts = [...contacts, newContact];
-    await fs.writeFile(contactsPath, JSON.stringify(allContacts, null, 2));
-    return newContact;
-  } catch (error) {
-    console.error("Error adding new contact:", error);
-  }
+const isContactExists = async ({name, email}) => {
+// Check if a contact with the same name or email already exists
+    const contact = await Contact.findOne({
+        $or: [{name}, {email}],
+    });
+    return contact !== null;
 };
 
-const updateContact = async ({ id, name, email, phone }) => {
-  try {
-    const contacts = await listContacts();
-    const index = contacts.findIndex(contact => contact.id === id);
-    if (index === -1) {
-      return null;
-    }
 
-    contacts[index] = { ...contacts[index], name, email, phone };
-
-    // Write the updated contacts
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-
-    // Respond with the updated contact
-    return contacts[index];
-  } catch (error) {
-    console.error("Error updating contact:", error);
-  }
+const addContact = async ({name, email, phone}) => {
+    // Create a new contact
+    return await Contact.create({name, email, phone});
 };
 
-export { listContacts, getContactById, removeContact, addContact, updateContact };
+const updateContact = async ({id, name, email, phone, favorite}) => {
+    return Contact.findByIdAndUpdate(id, {name, email, phone, favorite}, {
+        // Return the updated version
+        new: true,
+    });
+};
+
+const updateStatusContact = async ({id, favorite}) => {
+    return Contact.findByIdAndUpdate(id, {favorite}, {
+        // Return the updated version
+        new: true,
+    });
+};
+
+export {isContactExists, updateStatusContact, listContacts, getContactById, removeContact, addContact, updateContact};
