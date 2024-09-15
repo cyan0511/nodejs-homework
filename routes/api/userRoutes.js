@@ -4,11 +4,11 @@ import {
     loginUser,
     logoutUser,
     getCurrentUser,
-    updateUserSubscription
+    updateUserSubscription, updateAvatar
 } from "../../controllers/userController.js";
 import { authenticateToken } from "../../middlewares/authenticateToken.js";
-import {validateSignup, validateSubscription} from "../../middlewares/validation.js";
-import * as v8 from "node:v8";
+import { validateSignup, validateSubscription } from "../../middlewares/validation.js";
+import { upload } from "../../middlewares/upload.js";
 
 const router = express.Router();
 
@@ -40,5 +40,7 @@ router.get("/current", authenticateToken, getCurrentUser);
 }
 */
 router.patch("/", authenticateToken, validateSubscription, updateUserSubscription);
+
+router.patch("/avatars", authenticateToken, upload.single("avatar"), updateAvatar);
 
 export default router;

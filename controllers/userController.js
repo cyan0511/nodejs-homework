@@ -1,5 +1,9 @@
 import bcrypt from "bcrypt";
+import fs from "fs/promises";
+import gravatar from "gravatar";
+import { Jimp } from "jimp";
 import jwt from "jsonwebtoken";
+import path from "path";
 import "dotenv/config";
 import { User } from "../models/userModel.js";
 import {HttpError} from "../errors/HttpError.js";
@@ -17,13 +21,17 @@ const signupUser = async (req, res, next) => {
 
     const hashPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await User.create({ email, password: hashPassword });
+    // Create a link to the user's avatar with gravatar
+    const avatarURL = gravatar.url(email, { protocol: "http" });
+
+    const newUser = await User.create({ email, password: hashPassword, avatarURL });
 
     // Registration success response
     res.status(201).json({
         user: {
             email: newUser.email,
             subscription: newUser.subscription,
+            avatarURL,
         },
     });
 };
@@ -94,4 +102,30 @@ const updateUserSubscription = async (req, res) => {
     });
 };
 
-export { updateUserSubscription, signupUser, loginUser, logoutUser, getCurrentUser};
+const updateAvatar = async (req, res, next) => {
+    try {
+        const {_id} = req.user;
+        const {path: oldPath, originalname} = req.file;
+
+        await Jimp.read(oldPath).then((image) =>
+            // image.resize(250, 250).write(oldPath)
+            image.cover({ w: 250, h: 250 }).write(oldPath)
+        );
+
+        const extension = path.extname(originalname);
+
+        const filename = `${_id}${extension}`;
+        const newPath = path.join("public", "avatars", filename);
+        await fs.rename(oldPath, newPath);
+
+        let avatarURL = path.join("/avatars", filename);
+        avatarURL = avatarURL.replace(/\\/g, "/");
+
+        await User.findByIdAndUpdate(_id, {avatarURL});
+        res.status(200).json({avatarURL});
+    } catch (ex) {
+        next(new HttpError(500, ex.message))
+    }
+};
+
+export { updateAvatar, updateUserSubscription, signupUser, loginUser, logoutUser, getCurrentUser};
