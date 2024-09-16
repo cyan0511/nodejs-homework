@@ -4,10 +4,10 @@ import {
     loginUser,
     logoutUser,
     getCurrentUser,
-    updateUserSubscription, updateAvatar
+    updateUserSubscription, updateAvatar, verifyEmail, resendVerifyEmail
 } from "../../controllers/userController.js";
 import { authenticateToken } from "../../middlewares/authenticateToken.js";
-import { validateSignup, validateSubscription } from "../../middlewares/validation.js";
+import {validateEmail, validateSignup, validateSubscription} from "../../middlewares/validation.js";
 import { upload } from "../../middlewares/upload.js";
 
 const router = express.Router();
@@ -42,5 +42,15 @@ router.get("/current", authenticateToken, getCurrentUser);
 router.patch("/", authenticateToken, validateSubscription, updateUserSubscription);
 
 router.patch("/avatars", authenticateToken, upload.single("avatar"), updateAvatar);
+
+/* GET: // http://localhost:3000/api/users/verify/:verificationToken */
+router.get("/verify/:verificationToken", verifyEmail);
+
+/* POST: // http://localhost:3000/api/users/verify
+{
+  "email": "example@example.com",
+}
+*/
+router.post("/verify", authenticateToken, validateEmail, resendVerifyEmail);
 
 export default router;

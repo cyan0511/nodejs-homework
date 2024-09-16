@@ -1,5 +1,10 @@
 // Validation middleware
-import {contactValidation, favoriteValidation, subscriptionValidation} from "../validations/validation.js";
+import {
+    contactValidation,
+    emailValidation,
+    favoriteValidation,
+    subscriptionValidation
+} from "../validations/validation.js";
 import {signupValidation} from "../validations/validation.js";
 
 const validate = joiSchema => (req, res, next) => {
@@ -20,4 +25,5 @@ export const validateContact = validate(contactValidation);
 export const validateFavorite = validate(favoriteValidation);
 export const validateSignup = validate(signupValidation);
 export const validateSubscription = validate(subscriptionValidation);
+export const validateEmail = validate(emailValidation);
 
